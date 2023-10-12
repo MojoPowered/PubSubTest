@@ -22,23 +22,9 @@ interface IPublishSubscribeService {
 
 //#region Machines defines
 
-// Machine Repo Class
-class MachineRepository {
-  private _machines: Map<string, Machine> = new Map();
-
-  addMachine(machine: Machine): void {
-    this._machines.set(machine.id, machine);
-  }
-
-  getMachine(machineId: string): Machine | undefined {
-  //getMachine<T extends unknown>(machineId: T): Maybe<T> {
-    return this._machines.get(machineId);
-  }
-}
-
 // Machine Class
 class Machine {
-  public stockLevel = 10;
+  public stockLevel = 5;
   public id: string;
 
   constructor (id: string) {
@@ -123,25 +109,25 @@ class StockLevelOKEvent implements IEvent {
 // Implement IPublishSubscribeService
 var subscribers: Map<string, ISubscriber> = new Map();
 class PublishSubscribeService implements IPublishSubscribeService {
-  subscribe(eventType: string, subscriber: ISubscriber): void {
-    if (!subscribers.has(eventType)) {
-      console.log("Subscribe => " + eventType + " count= " + subscribers.size);
-      subscribers.set(eventType, subscriber);
+  subscribe(_eventType: string, _subscriber: ISubscriber): void {
+    if (!subscribers.has(_eventType)) {
+      //console.log("Subscribe => " + eventType + " count= " + subscribers.size);
+      subscribers.set(_eventType, _subscriber);
     }
   }
 
-  unsubscribe(eventType: string, subscriber: ISubscriber): void {
-    if (subscribers.has(eventType)) {
-      subscribers.delete(eventType);
+  unsubscribe(_eventType: string, _subscriber: ISubscriber): void {
+    if (subscribers.has(_eventType)) {
+      subscribers.delete(_eventType);
     }
   }
 
-  publish(event: IEvent): void {
-    console.log("publish => " + event.machineId() + " " + event.type() + " " + subscribers.size);
-    const subscriber = subscribers.get(event.type());
-    if (subscriber) {
-      console.log("publishing...");
-      subscriber.handle(event);
+  publish(_event: IEvent): void {
+    console.log("publish => " + _event.machineId() + " " + _event.type() + " " + subscribers.size);
+    const _subscriber = subscribers.get(_event.type());
+    if (_subscriber) {
+      //console.log("publishing...");
+      _subscriber.handle(_event);
     }
   }
 }
@@ -153,21 +139,23 @@ class MachineSaleSubscriber implements ISubscriber {
   private _machines: Machine[];
   private _publisher: IPublishSubscribeService;
 
-  constructor (machines: Machine[], publisher: IPublishSubscribeService) {
-    this._machines = machines; 
-    this._publisher = publisher;
+  constructor (_machines: Machine[], _publisher: IPublishSubscribeService) {
+    this._machines = _machines; 
+    this._publisher = _publisher;
   }
 
-  handle(event: MachineSaleEvent): void {
+  handle(_event: MachineSaleEvent): void {
     //console.log("MachineSaleEvent, MC Lenght= " + this._machines.length);
-    var publishRequired = Boolean(this._machines[Number(event.machineId())].stockLevel >= 3 ? true : false);
-    var stock = this._machines[Number(event.machineId())].stockLevel -= event.getSoldQuantity();
+    var _targetMachine = this._machines.find(mc => mc.id === _event.machineId()) as Machine;
+    var _publishAllowed = Boolean(_targetMachine.stockLevel >= 3 ? true : false);
+    var _stock = _targetMachine.stockLevel -= _event.getSoldQuantity();
     
-    console.log("MachineSaleEvent, " + event.type() + ", " + event.machineId() + ", Sold= " + event.getSoldQuantity() + ", Stock Left= " + stock);
+    console.log("MachineSaleEvent, " + _event.type() + ", " + _event.machineId() + ", Sold= " + _event.getSoldQuantity() + ", Stock Left= " + _stock + ", Pub Allowed= " + _publishAllowed);
 
     //Check condition for publishing
-    if(stock < 3 && publishRequired){
-      this._publisher.publish(new StockWarningEvent(stock, event.machineId()));
+    if(_stock < 3 && _publishAllowed){
+      //console.log("publishing StockWarningEvent...");
+      this._publisher.publish(new StockWarningEvent(_stock, _event.machineId()));
     }
   }
 }
@@ -177,36 +165,37 @@ class MachineRefillSubscriber implements ISubscriber {
   private _machines: Machine[];
   private _publisher: IPublishSubscribeService;
 
-  constructor (machines: Machine[], publisher: IPublishSubscribeService) {
-    this._machines = machines; 
-    this._publisher = publisher;
+  constructor (_machines: Machine[], _publisher: IPublishSubscribeService) {
+    this._machines = _machines; 
+    this._publisher = _publisher;
   }
 
-  handle(event: MachineRefillEvent): void {
-    //console.log("MachineRefillEvent, MC ID= " + event.machineId() + ", refill= " + event.getRefillQuantity());
-    var publishRequired = Boolean(this._machines[Number(event.machineId())].stockLevel < 3 ? true : false);
-    var stock = this._machines[Number(event.machineId())].stockLevel += event.getRefillQuantity();
+  handle(_event: MachineRefillEvent): void {
+    var _targetMachine = this._machines.find(mc => mc.id === _event.machineId()) as Machine;
+    var _publishAllowed = Boolean(_targetMachine.stockLevel < 3 ? true : false);
+    var _stock = _targetMachine.stockLevel += _event.getRefillQuantity();
     
-    console.log("MachineRefillEvent, " + event.type() + ", " + event.machineId() + ", Refill= " + event.getRefillQuantity() + ", Stock Left= " + stock);
+    console.log("MachineRefillEvent, " + _event.type() + ", " + _event.machineId() + ", Refill= " + _event.getRefillQuantity() + ", Stock Left= " + _stock + ", Pub Allowed= " + _publishAllowed);
 
     //Check condition for publishing
-    if(stock >= 3 && publishRequired){
-      this._publisher.publish(new StockLevelOKEvent(stock, event.machineId()));
+    if(_stock >= 3 && _publishAllowed){
+      //console.log("publishing StockLevelOKEvent...");
+      this._publisher.publish(new StockLevelOKEvent(_stock, _event.machineId()));
     }
   }
 }
 
 //Warning Subscriber
 class StockWarningSubscriber implements ISubscriber {
-   handle(event: StockWarningEvent): void {
-    console.log("StockWarningEvent, " + event.type() + ", " + event.machineId() + ", Stock Left= " + event.getRemainQuantity())
+   handle(_event: StockWarningEvent): void {
+    console.log("StockWarningEvent, " + _event.type() + ", " + _event.machineId() + ", Stock Left= " + _event.getRemainQuantity())
   }
 }
 
 //StockOK Subscriber
 class StockLevelOKSubscriber implements ISubscriber {
-  handle(event: StockLevelOKEvent): void {
-    console.log("StockLevelOKEvent, " + event.type() + ", " + event.machineId() + ", Stock Left= " + event.getRemainQuantity())
+  handle(_event: StockLevelOKEvent): void {
+    console.log("StockLevelOKEvent, " + _event.type() + ", " + _event.machineId() + ", Stock Left= " + _event.getRemainQuantity())
   }
 }
 //#endregion
@@ -227,7 +216,7 @@ const randomMachine = (): string => {
 const eventGenerator = (): IEvent => {
   const random = Math.random();
   if (random < 0.5) {
-    const saleQty = Math.random() < 0.5 ? 1 : 2; // 1 or 2
+    const saleQty = Math.random() < 0.5 ? 3 : 5; // 1 or 2
     return new MachineSaleEvent(saleQty, randomMachine());
   } 
   else{
@@ -253,6 +242,7 @@ const eventGenerator = (): IEvent => {
   const warningSub = new StockWarningSubscriber();
   const stockOK = new StockLevelOKSubscriber();
 
+  // subscribe to publisher
   console.log("Pub Sub Subscribing...");
   pubSubService.subscribe('MachineSaleEvent', saleSubscriber);
   pubSubService.subscribe('MachineRefillEvent', refillSubscriber);
@@ -261,7 +251,7 @@ const eventGenerator = (): IEvent => {
 
   console.log("Pub Sub Generat Event.");
   // create 5 random events
-  const events = [1,2].map(i => eventGenerator());
+  const events = [1,2,3,4,5,6,7,8,9].map(i => eventGenerator());
   
   console.log("Pub Sub Publising...");
   // publish the events
